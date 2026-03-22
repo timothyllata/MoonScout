@@ -1,19 +1,18 @@
 from flask import Flask, jsonify, render_template
 from pymongo import MongoClient, DESCENDING
-from neurosciout.config import settings
+from moonscout.config import settings
 import logging
 
 logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
-import ssl
 _mongo_client = MongoClient(
     settings.mongodb_connection_uri,
     tls=True,
     tlsAllowInvalidCertificates=True,  # dev only — don't use in production
 )
 
-_db = _mongo_client["neurosciout"]
+_db = _mongo_client["moonscout"]
 
 
 def _serialize_doc(doc: dict) -> dict:
