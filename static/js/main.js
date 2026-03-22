@@ -1,166 +1,22 @@
-const INTERVAL = 5000; // ms between coins
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+const DISPLAY_INTERVAL = 5000;   // ms between showing each coin in the spotlight
+const POLL_INTERVAL    = 15000;  // ms between API polls for new data
+const API_BASE         = "/api/intelligence";
 
-// ─── MOCK DATA in real API shape ───
-// Each object matches the API response format exactly.
-// Replace this array with a fetch() call to your real endpoint when ready.
-const coins = [
-  {
-    mint_address:    "DogeZi11aXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-    symbol:          "DOGZL",
-    name:            "DogeZilla",
-    degen_score:     91.0,
-    rug_score:       78.5,
-    is_rug:          false,
-    lp_locked:       false,
-    top_holder_pct:  42.3,
-    freeze_authority: true,
-    mint_authority:  true,
-    decimals:        9,
-    creator_address: "RuGPu11XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-    created_at:      "2024-06-12T03:22:00+00:00",
-    broadcast_sent:  true,
-    // UI extras (drop these once real API is wired up)
-    _emoji: "🦖", _color: "#f7931a",
-    _verdict: "Textbook memecoin. No whitepaper, anonymous devs, freeze & mint authority both enabled — classic rug setup. The 42% top holder concentration is a massive red flag.",
-  },
-  {
-    mint_address:    "NRC1NeuRa1ChainXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-    symbol:          "NRC",
-    name:            "NeuralChain",
-    degen_score:     18.0,
-    rug_score:       4.2,
-    is_rug:          false,
-    lp_locked:       true,
-    top_holder_pct:  6.1,
-    freeze_authority: false,
-    mint_authority:  false,
-    decimals:        6,
-    creator_address: "Le9itDevXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-    created_at:      "2022-11-03T09:00:00+00:00",
-    broadcast_sent:  true,
-    _emoji: "🧠", _color: "#7c5cfc",
-    _verdict: "Low risk across the board. LP is locked, no freeze or mint authority, and top holder concentration is healthy at 6%. Degen and rug scores are both minimal.",
-  },
-  {
-    mint_address:    "PEPECashM0neyXLXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-    symbol:          "PCMXL",
-    name:            "PepeCashMoneyXL",
-    degen_score:     98.5,
-    rug_score:       91.0,
-    is_rug:          true,
-    lp_locked:       false,
-    top_holder_pct:  67.0,
-    freeze_authority: true,
-    mint_authority:  true,
-    decimals:        6,
-    creator_address: "ScamWa11etXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-    created_at:      "2025-01-07T03:00:00+00:00",
-    broadcast_sent:  true,
-    _emoji: "🐸", _color: "#00c851",
-    _verdict: "Flagged as a rug. 67% top holder concentration, freeze and mint authority both active, LP not locked. Every risk indicator is at maximum. Do not touch.",
-  },
-  {
-    mint_address:    "AQUALedger1XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-    symbol:          "AQUA",
-    name:            "AquaLedger",
-    degen_score:     22.0,
-    rug_score:       6.8,
-    is_rug:          false,
-    lp_locked:       true,
-    top_holder_pct:  9.4,
-    freeze_authority: false,
-    mint_authority:  false,
-    decimals:        6,
-    creator_address: "H2ODevXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-    created_at:      "2021-08-15T12:00:00+00:00",
-    broadcast_sent:  true,
-    _emoji: "💧", _color: "#00aae4",
-    _verdict: "Solid fundamentals. LP locked, no dangerous authorities, low rug score, and reasonable holder distribution. A legitimate RWA project with clean on-chain hygiene.",
-  },
-  {
-    mint_address:    "SHIB2ReVeNGeXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-    symbol:          "SHIB2",
-    name:            "Shib2TheRevenge",
-    degen_score:     87.0,
-    rug_score:       64.0,
-    is_rug:          false,
-    lp_locked:       false,
-    top_holder_pct:  38.9,
-    freeze_authority: false,
-    mint_authority:  true,
-    decimals:        9,
-    creator_address: "AnonDevXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-    created_at:      "2025-03-01T21:00:00+00:00",
-    broadcast_sent:  true,
-    _emoji: "🐕", _color: "#ff6b35",
-    _verdict: "High degen and rug scores. Mint authority is still active (supply can be inflated at any time), LP is unlocked, and one wallet holds 39% of supply. Speculative play at best.",
-  },
-  {
-    mint_address:    "OVT0mniVau1tXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-    symbol:          "OVT",
-    name:            "OmniVault",
-    degen_score:     11.0,
-    rug_score:       2.1,
-    is_rug:          false,
-    lp_locked:       true,
-    top_holder_pct:  4.2,
-    freeze_authority: false,
-    mint_authority:  false,
-    decimals:        6,
-    creator_address: "AuditedDevXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-    created_at:      "2020-05-20T08:00:00+00:00",
-    broadcast_sent:  true,
-    _emoji: "🔐", _color: "#00f5c4",
-    _verdict: "Excellent risk profile. Near-zero rug score, LP locked, no authorities enabled, and extremely distributed holder base. One of the cleanest token configs in the feed.",
-  },
-  {
-    mint_address:    "MR1UMo0nR0cketInuXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-    symbol:          "MRIU",
-    name:            "MoonRocketInu",
-    degen_score:     95.0,
-    rug_score:       82.0,
-    is_rug:          false,
-    lp_locked:       false,
-    top_holder_pct:  51.0,
-    freeze_authority: true,
-    mint_authority:  true,
-    decimals:        9,
-    creator_address: "3amDevXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-    created_at:      "2025-02-14T03:14:00+00:00",
-    broadcast_sent:  true,
-    _emoji: "🚀", _color: "#ffe44d",
-    _verdict: "Extremely high risk. Over half the supply is in one wallet, both freeze and mint authority are active, and the LP is wide open. Deployed at 3am — classic launch pattern for a pump-and-dump.",
-  },
-  {
-    mint_address:    "GR1DGridiron1XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-    symbol:          "GRID",
-    name:            "GridironFi",
-    degen_score:     25.0,
-    rug_score:       9.3,
-    is_rug:          false,
-    lp_locked:       true,
-    top_holder_pct:  11.2,
-    freeze_authority: false,
-    mint_authority:  false,
-    decimals:        6,
-    creator_address: "GreenDevXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-    created_at:      "2022-03-08T10:00:00+00:00",
-    broadcast_sent:  true,
-    _emoji: "⚡", _color: "#ffd700",
-    _verdict: "Low risk profile with locked LP, no dangerous authorities, and reasonable holder distribution. Degen score slightly elevated but within acceptable range for a legitimate project.",
-  },
-];
-
-// ─── STATE ───
-let currentIndex    = 0;
-let memeCount       = 0;
-let legitCount      = 0;
-let totalScanned    = 0;
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let coinQueue        = [];   // coins waiting to be displayed
+let displayedCoins   = [];   // full history (for the feed)
+let currentCoin      = null;
+let lastSeenId       = null; // MongoDB _id of the most recently fetched coin
+let memeCount        = 0;
+let legitCount       = 0;
+let totalScanned     = 0;
 let countdownInterval = null;
+let displayTimer      = null;
+let isLoading         = true; // true until the first successful API response
 
-// ─── HELPERS ───
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
 function isMeme(coin) {
-  // Classify as memecoin if degen_score >= 60 OR rug_score >= 50 OR is_rug
   return coin.is_rug || coin.degen_score >= 60 || coin.rug_score >= 50;
 }
 
@@ -171,20 +27,131 @@ function formatAddress(addr) {
 
 function formatDate(iso) {
   try {
-    const d = new Date(iso);
-    return d.toISOString().slice(0, 10);
+    return new Date(iso).toISOString().slice(0, 10);
   } catch { return iso; }
 }
 
+// Deterministic color from a string — used when the API doesn't supply one
+function hashColor(str) {
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) h = (h * 33) ^ str.charCodeAt(i);
+  const hue = Math.abs(h) % 360;
+  return `hsl(${hue}, 80%, 60%)`;
+}
+
+// Map degen score ranges to emojis that match the existing UI vocabulary
+function scoreEmoji(coin) {
+  if (coin.is_rug)            return '☠️';
+  if (coin.degen_score >= 90) return '🚀';
+  if (coin.degen_score >= 70) return '🔥';
+  if (coin.degen_score >= 50) return '⚡';
+  if (coin.degen_score >= 30) return '🧠';
+  return '🔐';
+}
+
 function coinColor(coin) {
-  return coin._color || '#00f5c4';
+  // Prefer server-supplied color, fall back to deterministic hash
+  return coin._color || hashColor(coin.mint_address);
 }
 
 function coinEmoji(coin) {
-  return coin._emoji || '🪙';
+  return coin._emoji || scoreEmoji(coin);
 }
 
-// ─── RENDER ───
+// Build a human-readable verdict from on-chain risk signals
+// (used when the API doc has no pre-baked _verdict field)
+function buildVerdict(coin) {
+  const flags = [];
+  if (coin.is_rug)             flags.push('flagged as a rug');
+  if (!coin.lp_locked)         flags.push('LP is unlocked');
+  if (coin.freeze_authority)   flags.push('freeze authority active');
+  if (coin.mint_authority)     flags.push('mint authority active');
+  if (coin.top_holder_pct > 30)
+    flags.push(`top holder owns ${coin.top_holder_pct.toFixed(1)}% of supply`);
+
+  if (flags.length === 0)
+    return `Clean token profile. Degen score ${coin.degen_score.toFixed(1)}, rug score ${coin.rug_score.toFixed(1)}.`;
+  return `Risk factors detected: ${flags.join(', ')}. Degen ${coin.degen_score.toFixed(1)} / Rug ${coin.rug_score.toFixed(1)}.`;
+}
+
+// ─── API ──────────────────────────────────────────────────────────────────────
+
+/**
+ * Initial load — fetch the most recent 50 coins from Atlas.
+ * Populates coinQueue and kicks off the display loop.
+ */
+async function initialFetch() {
+  try {
+    const res  = await fetch(API_BASE);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const coins = (data.coins || []).reverse(); // oldest first so queue drains in discovery order
+
+    if (coins.length > 0) {
+      // Track the most recent _id so incremental polls only return newer docs
+      lastSeenId = data.coins[0]._id || null;
+      coinQueue.push(...coins);
+      isLoading = false;
+      hideLoadingState();
+      scheduleNextDisplay();
+    } else {
+      showEmptyState();
+    }
+  } catch (err) {
+    console.error('[NeuroScout] Initial fetch failed:', err);
+    showErrorState(err.message);
+  }
+}
+
+/**
+ * Incremental poll — only fetches documents newer than lastSeenId.
+ * New coins are appended to the back of coinQueue so they appear
+ * after whatever is currently waiting to be displayed.
+ */
+async function pollForNew() {
+  if (!lastSeenId) {
+    await initialFetch();
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/since/${lastSeenId}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const newCoins = (data.coins || []).reverse();
+
+    if (newCoins.length > 0) {
+      // Update cursor to the newest _id returned
+      lastSeenId = data.coins[0]._id || lastSeenId;
+      coinQueue.push(...newCoins);
+      console.log(`[NeuroScout] Queued ${newCoins.length} new coin(s). Queue depth: ${coinQueue.length}`);
+    }
+  } catch (err) {
+    console.warn('[NeuroScout] Poll failed (will retry):', err);
+  }
+}
+
+// ─── DISPLAY LOOP ─────────────────────────────────────────────────────────────
+
+function scheduleNextDisplay() {
+  clearTimeout(displayTimer);
+
+  if (coinQueue.length === 0) {
+    // Nothing queued — check again in 2s without advancing the countdown
+    displayTimer = setTimeout(scheduleNextDisplay, 2000);
+    return;
+  }
+
+  const coin = coinQueue.shift();
+  currentCoin = coin;
+  addToFeed(coin);
+  renderCoin(coin);
+
+  displayTimer = setTimeout(scheduleNextDisplay, DISPLAY_INTERVAL);
+}
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+
 function renderCoin(coin) {
   const card = document.getElementById('coin-card');
   card.classList.add('exiting');
@@ -195,7 +162,7 @@ function renderCoin(coin) {
     void card.offsetWidth;
     card.style.animation = '';
 
-    const color   = coinColor(coin);
+    const color    = coinColor(coin);
     const memeCoin = isMeme(coin);
 
     // Avatar
@@ -212,20 +179,20 @@ function renderCoin(coin) {
     document.getElementById('coin-created').textContent = '// CREATED ' + formatDate(coin.created_at);
 
     const badge = document.getElementById('verdict-badge');
-    badge.textContent  = memeCoin ? 'MEMECOIN' : 'LEGIT';
-    badge.className    = 'verdict-badge ' + (memeCoin ? 'meme' : 'legit');
+    badge.textContent = memeCoin ? 'MEMECOIN' : 'LEGIT';
+    badge.className   = 'verdict-badge ' + (memeCoin ? 'meme' : 'legit');
 
     // Scores
     const degenPct = Math.min(coin.degen_score, 100);
-    const rugPct   = Math.min(coin.rug_score, 100);
+    const rugPct   = Math.min(coin.rug_score,   100);
     document.getElementById('degen-score-val').textContent = coin.degen_score.toFixed(1);
     document.getElementById('rug-score-val').textContent   = coin.rug_score.toFixed(1);
     document.getElementById('degen-bar').style.width = degenPct + '%';
-    document.getElementById('rug-bar').style.width   = rugPct + '%';
+    document.getElementById('rug-bar').style.width   = rugPct   + '%';
 
-    // Flags — bad = active-bad, good (lp_locked) = active-good, else dim
+    // Flags
     setFlag('flag-rug',    coin.is_rug,          true);
-    setFlag('flag-lp',     coin.lp_locked,       false);  // locked = good
+    setFlag('flag-lp',     coin.lp_locked,       false);
     setFlag('flag-freeze', coin.freeze_authority, true);
     setFlag('flag-mint',   coin.mint_authority,   true);
 
@@ -234,11 +201,17 @@ function renderCoin(coin) {
     document.getElementById('stat-decimals').textContent   = coin.decimals;
     document.getElementById('stat-creator').textContent    = formatAddress(coin.creator_address);
 
+    // Scorer mode badge (heuristic vs xgboost) — update if the element exists
+    const scorerEl = document.getElementById('stat-scorer');
+    if (scorerEl) scorerEl.textContent = coin.scorer_mode || 'heuristic';
+
     // Verdict
     const vs = document.getElementById('verdict-section');
     vs.className = 'verdict-section ' + (memeCoin ? 'is-meme' : 'is-legit');
-    document.getElementById('verdict-title').textContent = memeCoin ? '⚠ MEMECOIN DETECTED' : '✓ LEGITIMATE PROJECT';
-    document.getElementById('verdict-text').textContent  = coin._verdict || buildVerdict(coin);
+    document.getElementById('verdict-title').textContent =
+      memeCoin ? '⚠ MEMECOIN DETECTED' : '✓ LEGITIMATE PROJECT';
+    document.getElementById('verdict-text').textContent  =
+      coin._verdict || buildVerdict(coin);
 
     restartProgress();
   }, 340);
@@ -246,51 +219,43 @@ function renderCoin(coin) {
 
 function setFlag(id, value, badWhenTrue) {
   const el = document.getElementById(id);
+  if (!el) return;
   el.classList.remove('active-bad', 'active-good');
   if (badWhenTrue) {
     if (value) el.classList.add('active-bad');
   } else {
-    // lp_locked — good when true
     if (value) el.classList.add('active-good');
-    else        el.classList.add('active-bad');
+    else       el.classList.add('active-bad');
   }
 }
 
-// Fallback verdict builder if no _verdict string provided (useful once real API is wired)
-function buildVerdict(coin) {
-  const flags = [];
-  if (coin.is_rug)          flags.push('flagged as a rug');
-  if (!coin.lp_locked)      flags.push('LP is unlocked');
-  if (coin.freeze_authority) flags.push('freeze authority active');
-  if (coin.mint_authority)   flags.push('mint authority active');
-  if (coin.top_holder_pct > 30) flags.push(`top holder owns ${coin.top_holder_pct.toFixed(1)}% of supply`);
+// ─── PROGRESS BAR ─────────────────────────────────────────────────────────────
 
-  if (flags.length === 0) return `Clean token profile. Degen score ${coin.degen_score}, rug score ${coin.rug_score}.`;
-  return `Risk factors detected: ${flags.join(', ')}. Degen score ${coin.degen_score} / Rug score ${coin.rug_score}.`;
-}
-
-// ─── PROGRESS ───
 function restartProgress() {
   const bar = document.getElementById('progress-bar');
+  if (!bar) return;
   bar.style.animation = 'none';
   void bar.offsetWidth;
-  bar.style.setProperty('--duration', (INTERVAL / 1000) + 's');
-  bar.style.animation = `countdown ${INTERVAL / 1000}s linear forwards`;
+  bar.style.setProperty('--duration', (DISPLAY_INTERVAL / 1000) + 's');
+  bar.style.animation = `countdown ${DISPLAY_INTERVAL / 1000}s linear forwards`;
 
-  let secs = Math.ceil(INTERVAL / 1000);
-  document.getElementById('countdown-label').textContent = secs + 's';
+  let secs = Math.ceil(DISPLAY_INTERVAL / 1000);
+  const label = document.getElementById('countdown-label');
+  if (label) label.textContent = secs + 's';
   clearInterval(countdownInterval);
   countdownInterval = setInterval(() => {
     secs = Math.max(0, secs - 1);
-    document.getElementById('countdown-label').textContent = secs + 's';
+    if (label) label.textContent = secs + 's';
   }, 1000);
 }
 
-// ─── FEED ───
+// ─── FEED ─────────────────────────────────────────────────────────────────────
+
 function addToFeed(coin) {
   const memeCoin = isMeme(coin);
   const color    = coinColor(coin);
   const list     = document.getElementById('feed-list');
+  if (!list) return;
 
   const item = document.createElement('div');
   item.className = 'feed-item';
@@ -310,19 +275,72 @@ function addToFeed(coin) {
 
   totalScanned++;
   if (memeCoin) memeCount++; else legitCount++;
-  document.getElementById('total-count').textContent = totalScanned;
-  document.getElementById('feed-count').textContent  = totalScanned + ' COINS';
-  document.getElementById('meme-count').textContent  = memeCount;
-  document.getElementById('legit-count').textContent = legitCount;
+
+  const totalEl = document.getElementById('total-count');
+  const feedEl  = document.getElementById('feed-count');
+  const memeEl  = document.getElementById('meme-count');
+  const legitEl = document.getElementById('legit-count');
+
+  if (totalEl) totalEl.textContent = totalScanned;
+  if (feedEl)  feedEl.textContent  = totalScanned + ' COINS';
+  if (memeEl)  memeEl.textContent  = memeCount;
+  if (legitEl) legitEl.textContent = legitCount;
 }
 
-// ─── CYCLE ───
-function nextCoin() {
-  const coin = coins[currentIndex % coins.length];
-  currentIndex++;
-  addToFeed(coin);
-  renderCoin(coin);
+// ─── UI STATE HELPERS ─────────────────────────────────────────────────────────
+
+function hideLoadingState() {
+  const el = document.getElementById('loading-state');
+  if (el) el.style.display = 'none';
+  const card = document.getElementById('coin-card');
+  if (card) card.style.display = '';
 }
 
-nextCoin();
-setInterval(nextCoin, INTERVAL);
+function showEmptyState() {
+  const el = document.getElementById('loading-state');
+  if (el) {
+    el.style.display = '';
+    el.textContent = 'No tokens scored yet. Waiting for the swarm…';
+  }
+}
+
+function showErrorState(msg) {
+  const el = document.getElementById('loading-state');
+  if (el) {
+    el.style.display = '';
+    el.textContent = `⚠ API error: ${msg}. Retrying…`;
+  }
+  // Retry initial fetch after 10s
+  setTimeout(initialFetch, 10_000);
+}
+
+// ─── BOOT ─────────────────────────────────────────────────────────────────────
+
+// Hide the main card until data arrives
+(function () {
+  const card = document.getElementById('coin-card');
+  if (card) card.style.display = 'none';
+})();
+
+initialFetch();
+setInterval(pollForNew, POLL_INTERVAL);
+
+function seedFromServerData() {
+  const el = document.getElementById('initial-data');
+  if (!el) return false;
+  
+  let data;
+  try {
+    data = JSON.parse(el.textContent);
+  } catch (err) {
+    console.error('[NeuroScout] Failed to parse initial data:', err);
+    return false;
+  }
+
+  if (!Array.isArray(data) || data.length === 0) return false;
+
+  lastSeenId = data[data.length - 1]._id || null;
+  coinQueue.push(...data);
+  hideLoadingState();
+  return true;
+}
