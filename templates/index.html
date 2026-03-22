@@ -10,7 +10,7 @@
 <body>
 
 <nav>
-  <div class="nav-logo">NEX<span>CHAIN</span></div>
+  <div class="nav-logo">MOON<span>SCOUT</span></div>
   <div class="nav-tag">// LIVE COIN SCANNER <em>█</em></div>
   <div class="nav-tag">COINS SCANNED: <span class="accent" id="total-count">0</span></div>
 </nav>
@@ -19,7 +19,13 @@
 
   <!-- MAIN STAGE -->
   <div class="stage">
-    <div class="coin-card" id="coin-card">
+
+    <!-- Loading / empty / error state — hidden once data arrives -->
+    <div class="coin-card loading-state" id="loading-state">
+      <span id="loading-message">// CONNECTING TO SWARM…</span>
+    </div>
+
+    <div class="coin-card" id="coin-card" style="display:none">
 
       <!-- HEADER -->
       <div class="card-header">
@@ -87,6 +93,10 @@
             <div class="coin-stat-label">CREATOR</div>
             <div class="coin-stat-value" id="stat-creator">—</div>
           </div>
+          <div class="coin-stat">
+            <div class="coin-stat-label">SCORER</div>
+            <div class="coin-stat-value" id="stat-scorer">—</div>
+          </div>
         </div>
 
         <!-- VERDICT -->
@@ -130,6 +140,17 @@
   </div>
 
 </div>
+
+<!--
+  Server-injected seed data.
+  Flask renders the `initial_coins` list into this JS variable via Jinja's
+  | tojson filter, which safely escapes the Python list to valid JS.
+  main.js checks window.__INITIAL_DATA__ first and skips the initial
+  fetch() when coins are already present — no blank-screen flash.
+-->
+<script id="initial-data" type="application/json">
+  {{ initial_coins | tojson }}
+</script>
 
 <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
