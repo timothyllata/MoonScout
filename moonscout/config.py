@@ -58,11 +58,6 @@ class Settings(BaseSettings):
 
     discord_webhook_url: str
 
-    x_api_key: str
-    x_api_secret: str
-    x_access_token: str
-    x_access_secret: str
-
     # ------------------------------------------------------------------
     # uagents — deterministic agent seeds (keep secret; used to derive addresses)
     # ------------------------------------------------------------------
@@ -71,7 +66,6 @@ class Settings(BaseSettings):
     analyst_seed: str
     telegram_agent_seed: str
     discord_agent_seed: str
-    x_agent_seed: str
 
     # ------------------------------------------------------------------
     # ML / scoring config

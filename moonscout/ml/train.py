@@ -16,9 +16,9 @@ import logging
 from pathlib import Path
 
 import numpy as np
+import wandb
 import xgboost as xgb
-from sklearn.model_selection import cross_val_score
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
@@ -91,9 +91,34 @@ def train():
     n_neg = len(y) - n_pos
     logger.info("Dataset: %d total (%d rugs / %d good)", len(X), n_neg, n_pos)
 
-    # Class imbalance correction — upweight the minority class (good tokens)
     scale_pos_weight = n_neg / n_pos
-    logger.info("scale_pos_weight: %.2f", scale_pos_weight)
+
+    params = {
+        "objective":        "binary:logistic",
+        "eval_metric":      ["logloss", "auc"],
+        "max_depth":        4,
+        "learning_rate":    0.1,
+        "min_child_weight": 5,
+        "subsample":        0.8,
+        "colsample_bytree": 0.8,
+        "scale_pos_weight": scale_pos_weight,
+        "seed":             42,
+    }
+
+    # --- W&B init ---------------------------------------------------------
+    wandb.init(
+        project="moonscout",
+        name="xgboost-degen-scorer",
+        config={
+            **params,
+            "num_boost_round":  200,
+            "n_samples":        len(X),
+            "n_rugs":           n_neg,
+            "n_good":           n_pos,
+            "features":         FEATURES,
+            "data_source":      "synthetic",
+        },
+    )
 
     # --- Train/test split (80/20) -----------------------------------------
     split = int(0.8 * len(X))
@@ -103,27 +128,26 @@ def train():
     dtrain = xgb.DMatrix(X_train, label=y_train, feature_names=FEATURES)
     dtest  = xgb.DMatrix(X_test,  label=y_test,  feature_names=FEATURES)
 
-    params = {
-        "objective":        "binary:logistic",
-        "eval_metric":      ["logloss", "auc"],
-        "max_depth":        4,
-        "learning_rate":    0.1,
-        "n_estimators":     200,
-        "min_child_weight": 5,
-        "subsample":        0.8,
-        "colsample_bytree": 0.8,
-        "scale_pos_weight": scale_pos_weight,
-        "seed":             42,
-    }
-
+    # --- Train with per-round W&B logging ---------------------------------
     logger.info("Training XGBoost model...")
     evals_result: dict = {}
+
+    class WandbCallback(xgb.callback.TrainingCallback):
+        def after_iteration(self, model, epoch, evals_log):
+            metrics = {}
+            for dataset, metrs in evals_log.items():
+                for metric, values in metrs.items():
+                    metrics[f"{dataset}/{metric}"] = values[-1]
+            wandb.log(metrics, step=epoch)
+            return False
+
     model = xgb.train(
         params,
         dtrain,
         num_boost_round=200,
         evals=[(dtrain, "train"), (dtest, "test")],
         evals_result=evals_result,
+        callbacks=[WandbCallback()],
         verbose_eval=50,
     )
 
@@ -131,21 +155,60 @@ def train():
     preds_prob = model.predict(dtest)
     preds_bin  = (preds_prob >= 0.5).astype(int)
 
-    final_auc = evals_result["test"]["auc"][-1]
+    final_auc  = roc_auc_score(y_test, preds_prob)
+    report     = classification_report(y_test, preds_bin, target_names=["rug", "good"], output_dict=True)
+    importance = model.get_score(importance_type="gain")
+
     logger.info("\nTest AUC: %.4f", final_auc)
     logger.info("\nClassification Report:\n%s",
                 classification_report(y_test, preds_bin, target_names=["rug", "good"]))
-
-    # --- Feature importance -----------------------------------------------
-    importance = model.get_score(importance_type="gain")
     logger.info("Feature importance (gain):")
     for feat, score in sorted(importance.items(), key=lambda x: -x[1]):
         logger.info("  %-20s %.2f", feat, score)
+
+    # --- Log final metrics to W&B -----------------------------------------
+    wandb.log({
+        "final/test_auc":        final_auc,
+        "final/accuracy":        report["accuracy"],
+        "final/precision_good":  report["good"]["precision"],
+        "final/recall_good":     report["good"]["recall"],
+        "final/f1_good":         report["good"]["f1-score"],
+        "final/precision_rug":   report["rug"]["precision"],
+        "final/recall_rug":      report["rug"]["recall"],
+        "final/f1_rug":          report["rug"]["f1-score"],
+    })
+
+    # --- Confusion matrix (visual) ----------------------------------------
+    cm = confusion_matrix(y_test, preds_bin)
+    wandb.log({
+        "confusion_matrix": wandb.plot.confusion_matrix(
+            probs=None,
+            y_true=y_test.astype(int).tolist(),
+            preds=preds_bin.tolist(),
+            class_names=["rug", "good"],
+        )
+    })
+
+    # --- Feature importance bar chart -------------------------------------
+    importance_sorted = sorted(importance.items(), key=lambda x: -x[1])
+    wandb.log({
+        "feature_importance": wandb.plot.bar(
+            wandb.Table(
+                columns=["feature", "importance"],
+                data=[[f, round(s, 2)] for f, s in importance_sorted],
+            ),
+            "feature",
+            "importance",
+            title="Feature Importance (Gain)",
+        )
+    })
 
     # --- Save model -------------------------------------------------------
     model.save_model(str(MODEL_PATH))
     logger.info("\nModel saved to %s", MODEL_PATH)
     logger.info("DegenScorer will automatically use XGBoost mode on next startup.")
+
+    wandb.finish()
 
 
 if __name__ == "__main__":
