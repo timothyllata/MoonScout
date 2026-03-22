@@ -106,9 +106,27 @@ def _parse_rugcheck_response(
     freeze_authority = data.get("freezeAuthority") is not None
     mint_authority = data.get("mintAuthority") is not None
 
+    # Pull real name/symbol from RugCheck tokenMeta if discovery has placeholders
+    token_meta: dict = data.get("tokenMeta") or {}
+    symbol = token_meta.get("symbol") or discovery.symbol
+    name = token_meta.get("name") or discovery.name
+
+    # Update discovery with real name/symbol so downstream agents have it
+    discovery = TokenDiscovery(
+        mint_address=discovery.mint_address,
+        symbol=symbol,
+        name=name,
+        decimals=discovery.decimals,
+        supply=discovery.supply,
+        creator_address=discovery.creator_address,
+        created_at=discovery.created_at,
+        source=discovery.source,
+        raw_metadata=discovery.raw_metadata,
+    )
+
     return RugCheckResult(
         mint_address=discovery.mint_address,
-        symbol=discovery.symbol,
+        symbol=symbol,
         is_rug=is_rug,
         rug_score=rug_score,
         lp_locked=lp_locked,
