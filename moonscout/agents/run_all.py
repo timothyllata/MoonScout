@@ -1,7 +1,7 @@
 """
-run_all.py — NeuroScout Bureau entry point.
+run_all.py — MoonScout Bureau entry point.
 
-Runs all 6 agents in a single asyncio process using uagents Bureau.
+Runs all 5 agents in a single asyncio process using uagents Bureau.
 All agent logs appear in one terminal window — ideal for demo.
 
 Import order matters:
@@ -11,9 +11,9 @@ Import order matters:
   3. Scout and Historian have no digest dependency — order is flexible.
 
 Usage:
-    python -m neurosciout.agents.run_all
+    python -m moonscout.agents.run_all
     # or via pyproject.toml script:
-    neurosciout
+    moonscout
 """
 
 import logging
@@ -22,7 +22,7 @@ import sys
 from uagents import Bureau
 
 # ---------------------------------------------------------------------------
-# Logging — single handler so all 6 agents share one formatted output stream
+# Logging — single handler so all 5 agents share one formatted output stream
 # ---------------------------------------------------------------------------
 logging.basicConfig(
     level=logging.INFO,
@@ -33,23 +33,21 @@ logging.basicConfig(
 # Silence noisy third-party loggers
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
-logging.getLogger("tweepy").setLevel(logging.WARNING)
 
 # ---------------------------------------------------------------------------
 # Import agents
 # CRITICAL: notifier agents BEFORE analyst so notifier_protocol.digest is stable
 # ---------------------------------------------------------------------------
-# Step 1 — register @notifier_protocol.on_message handlers
-from neurosciout.agents.telegram_agent import agent as telegram_agent  # noqa: E402
-from neurosciout.agents.discord_agent import agent as discord_agent    # noqa: E402
-from neurosciout.agents.x_agent import agent as x_agent               # noqa: E402
+# Step 1 — register @notifier_protocol.on_message handlers (Discord only now)
+from moonscout.agents.discord_agent import agent as discord_agent    # noqa: E402
 
 # Step 2 — analyst reads notifier_protocol.digest at startup (safe now)
-from neurosciout.agents.analyst import agent as analyst_agent          # noqa: E402
+from moonscout.agents.analyst import agent as analyst_agent          # noqa: E402
 
-# Step 3 — scout and historian (no digest dependency)
-from neurosciout.agents.scout import agent as scout_agent              # noqa: E402
-from neurosciout.agents.historian import agent as historian_agent      # noqa: E402
+# Step 3 — no digest dependency
+from moonscout.agents.scout import agent as scout_agent              # noqa: E402
+from moonscout.agents.historian import agent as historian_agent      # noqa: E402
+from moonscout.agents.telegram_agent import agent as telegram_agent  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Bureau
@@ -59,17 +57,16 @@ bureau = Bureau(port=8000, endpoint="http://localhost:8000/submit")
 bureau.add(scout_agent)
 bureau.add(historian_agent)
 bureau.add(analyst_agent)
-bureau.add(telegram_agent)
 bureau.add(discord_agent)
-bureau.add(x_agent)
+bureau.add(telegram_agent)
 
 
-_AGENT_COUNT = 6  # scout, historian, analyst, telegram, discord, x
+_AGENT_COUNT = 5  # scout, historian, analyst, discord, telegram
 
 
 def main() -> None:
     logging.getLogger(__name__).info(
-        "Starting NeuroScout Bureau with %d agents...", _AGENT_COUNT
+        "Starting MoonScout Bureau with %d agents...", _AGENT_COUNT
     )
     bureau.run()
 

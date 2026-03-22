@@ -13,9 +13,9 @@ import logging
 import httpx
 from uagents import Agent, Context, Protocol
 
-from neurosciout.config import settings
-from neurosciout.database import get_latest_intelligence
-from neurosciout.protocols import IntelligenceReport
+from moonscout.config import settings
+from moonscout.database import get_latest_intelligence
+from moonscout.protocols import IntelligenceReport
 
 # Own Protocol instance — same (name, version) as all other notifiers.
 # Must NOT share the singleton from protocols.py (see protocols.py docstring).
@@ -58,7 +58,7 @@ def _build_embed(doc: dict) -> dict:
     mode = doc.get("scorer_mode", "heuristic")
 
     return {
-        "title": f"🚨 NeuroScout: ${symbol}",
+        "title": f"🚨 MoonScout: ${symbol}",
         "description": f"**{name}**\n`{mint}`",
         "color": _score_colour(degen),
         "url": f"https://solscan.io/token/{mint}",
@@ -99,7 +99,7 @@ def _build_embed(doc: dict) -> dict:
                 "inline": True,
             },
         ],
-        "footer": {"text": "NeuroScout • Powered by Fetch.ai uAgents + MongoDB Atlas"},
+        "footer": {"text": "MoonScout • Powered by Fetch.ai uAgents + MongoDB Atlas"},
     }
 
 

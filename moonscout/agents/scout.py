@@ -29,9 +29,9 @@ import httpx
 from uagents import Agent, Context
 from uagents_core.identity import Identity
 
-from neurosciout.config import settings
-from neurosciout.database import close_database, get_database, is_token_seen, mark_token_seen
-from neurosciout.protocols import TokenDiscovery, scout_protocol
+from moonscout.config import settings
+from moonscout.database import close_database, get_database, is_token_seen, mark_token_seen
+from moonscout.protocols import TokenDiscovery, scout_protocol
 
 logger = logging.getLogger(__name__)
 
@@ -39,14 +39,15 @@ logger = logging.getLogger(__name__)
 # Constants
 # ---------------------------------------------------------------------------
 SPL_TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+TOKEN_2022_PROGRAM = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
 HELIUS_RPC_URL = f"https://mainnet.helius-rpc.com/?api-key={settings.helius_api_key}"
 
 # Maximum signatures to fetch per poll interval.
 # Each sig needs 1 getTransaction call; Helius free tier is 100 req/s.
-SIGNATURES_PER_POLL = 100
+SIGNATURES_PER_POLL = 50
 
 # Maximum concurrent getTransaction requests in one poll cycle.
-_FETCH_CONCURRENCY = 10
+_FETCH_CONCURRENCY = 5
 
 # ---------------------------------------------------------------------------
 # Agent
@@ -75,22 +76,24 @@ def _peer_address(seed: str) -> str:
 
 async def _fetch_recent_signatures(
     client: httpx.AsyncClient,
-    before_sig: str | None,
+    until_sig: str | None,
     limit: int = SIGNATURES_PER_POLL,
+    program: str = SPL_TOKEN_PROGRAM,
 ) -> list[dict]:
     """
-    Return up to `limit` transaction signatures for the SPL Token Program.
+    Return up to `limit` NEW transaction signatures for the SPL Token Program.
 
-    Uses `before` (upper-bound exclusive) so each poll fetches only signatures
-    *older than* the most recent known sig.  On the first run before_sig is None
+    Uses `until` (lower-bound exclusive) so each poll fetches only signatures
+    *newer than* the most recently seen sig.  On the first run until_sig is None
     and the RPC returns the most recent `limit` sigs.
 
-    FIX HIGH-5: 'before' is the correct cursor parameter (not 'until') for
-    fetching signatures newer than the last known one in reverse-chronological order.
+    getSignaturesForAddress returns in reverse-chronological order (newest first).
+    `until=X` means "stop when you reach X" — so we get everything newer than X.
+    `before=X` means "start from before X" — that goes backwards through history.
     """
     params: dict = {"limit": limit, "commitment": "confirmed"}
-    if before_sig:
-        params["before"] = before_sig
+    if until_sig:
+        params["until"] = until_sig
 
     resp = await client.post(
         HELIUS_RPC_URL,
@@ -98,7 +101,7 @@ async def _fetch_recent_signatures(
             "jsonrpc": "2.0",
             "id": "scout-sigs",
             "method": "getSignaturesForAddress",
-            "params": [SPL_TOKEN_PROGRAM, params],
+            "params": [program, params],
         },
         timeout=15.0,
     )
@@ -301,20 +304,24 @@ async def poll_new_tokens(ctx: Context) -> None:
         historian_address = _peer_address(settings.historian_seed)
         ctx.storage.set("historian_address", historian_address)
 
-    before_sig: str | None = ctx.storage.get("last_signature")
-    ctx.logger.debug("Polling Helius (before_sig=%s)...", before_sig)
+    until_sig: str | None = ctx.storage.get("last_signature")
+    until_sig_2022: str | None = ctx.storage.get("last_signature_2022")
+    ctx.logger.debug("Polling Helius (until_sig=%s)...", until_sig)
 
     try:
         async with httpx.AsyncClient() as client:
-            sig_entries = await _fetch_recent_signatures(client, before_sig)
+            # Poll both SPL Token Program and Token-2022
+            sig_entries = await _fetch_recent_signatures(client, until_sig)
+            sig_entries_2022 = await _fetch_recent_signatures(
+                client, until_sig_2022, program=TOKEN_2022_PROGRAM
+            )
 
-            if not sig_entries:
+            all_sig_entries = sig_entries + sig_entries_2022
+            if not all_sig_entries:
                 ctx.logger.debug("No new signatures found.")
                 return
 
-            raw_sigs = [entry["signature"] for entry in sig_entries]
-
-            # FIX HIGH-3: Fetch standard jsonParsed transactions
+            raw_sigs = list({e["signature"] for e in all_sig_entries})
             transactions = await _fetch_transactions_concurrently(client, raw_sigs)
 
     except httpx.HTTPStatusError as exc:
@@ -324,9 +331,11 @@ async def poll_new_tokens(ctx: Context) -> None:
         ctx.logger.error("Helius request error: %s", exc)
         return
 
-    # FIX HIGH-4: Advance cursor only after successful fetch + parse
-    newest_sig = sig_entries[0]["signature"]
-    ctx.storage.set("last_signature", newest_sig)
+    # Advance cursors only after successful fetch
+    if sig_entries:
+        ctx.storage.set("last_signature", sig_entries[0]["signature"])
+    if sig_entries_2022:
+        ctx.storage.set("last_signature_2022", sig_entries_2022[0]["signature"])
 
     discoveries = _extract_mint_discoveries(transactions)
     ctx.logger.info("Found %d initializeMint event(s) in %d transactions.", len(discoveries), len(transactions))

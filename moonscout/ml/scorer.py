@@ -1,5 +1,5 @@
 """
-scorer.py — Degen Score computation for NeuroScout.
+scorer.py — Degen Score computation for MoonScout.
 
 Two-tier scoring strategy (user decision):
 

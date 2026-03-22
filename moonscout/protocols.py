@@ -1,5 +1,5 @@
 """
-protocols.py — NeuroScout uagents message models and Protocol definitions.
+protocols.py — MoonScout uagents message models and Protocol definitions.
 
 All inter-agent communication is typed via uagents.Model subclasses.
 

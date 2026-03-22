@@ -1,5 +1,5 @@
 """
-config.py — Centralised settings for NeuroScout.
+config.py — Centralised settings for MoonScout.
 
 pydantic-settings reads all values from the .env file and validates them
 at import time.  Any missing required variable raises a ValidationError
@@ -43,8 +43,18 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------
     # Social API credentials
     # ------------------------------------------------------------------
-    telegram_bot_token: str
-    telegram_chat_id: str
+
+    # Telegram scraper (user-account API via Telethon)
+    telegram_api_id: int
+    telegram_api_hash: str
+    # Comma-separated channel usernames/IDs to monitor, e.g. "solanatradingalpha,pumpfun_calls"
+    telegram_channels: str = ""
+    # Telethon session file name (no extension) — stored in project root
+    telegram_session_name: str = "moonscout_telegram"
+
+    # Telegram bot (kept for future use — not currently active)
+    telegram_bot_token: str = ""
+    telegram_chat_id: str = ""
 
     discord_webhook_url: str
 
@@ -71,10 +81,10 @@ class Settings(BaseSettings):
 
 
 # Module-level singleton — import this everywhere:
-#   from neurosciout.config import settings
+#   from moonscout.config import settings
 #
 # NOTE for tests: Settings() validates .env at import time.  Any test module
-# that imports from neurosciout.config needs a valid .env (or env vars) to be
+# that imports from moonscout.config needs a valid .env (or env vars) to be
 # present before collection runs.  Use a conftest.py fixture or pytest-dotenv
 # to load a test .env before tests import this module.
 settings = Settings()

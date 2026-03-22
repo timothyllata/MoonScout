@@ -28,8 +28,8 @@ import httpx
 from uagents import Agent, Context
 from uagents_core.identity import Identity
 
-from neurosciout.config import settings
-from neurosciout.protocols import RugCheckResult, TokenDiscovery, historian_protocol
+from moonscout.config import settings
+from moonscout.protocols import RugCheckResult, TokenDiscovery, historian_protocol
 
 logger = logging.getLogger(__name__)
 

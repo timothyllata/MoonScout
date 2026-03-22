@@ -22,12 +22,12 @@ import logging
 from datetime import datetime, timezone
 
 from uagents import Agent, Context
+from uagents_core.identity import Identity
 
-from neurosciout.config import settings
-from neurosciout.database import get_database, mark_broadcast_sent, save_intelligence
-from neurosciout.ml.scorer import DegenScorer
-from neurosciout.protocols import (
-    NOTIFIER_PROTOCOL_DIGEST,
+from moonscout.config import settings
+from moonscout.database import get_database, mark_broadcast_sent, save_intelligence
+from moonscout.ml.scorer import DegenScorer
+from moonscout.protocols import (
     IntelligenceReport,
     RugCheckResult,
     analyst_protocol,
@@ -61,7 +61,11 @@ async def on_startup(ctx: Context) -> None:
     # Load scorer — logs whether it's using XGBoost or heuristic mode
     _scorer = DegenScorer()
     ctx.logger.info("DegenScorer ready (mode: %s)", _scorer.mode)
-    ctx.logger.info("Notifier broadcast digest: %s", NOTIFIER_PROTOCOL_DIGEST)
+
+    # Derive notifier addresses for direct send (no Almanac registration needed)
+    discord_address = Identity.from_seed(settings.discord_agent_seed, 0).address
+    ctx.storage.set("discord_address", discord_address)
+    ctx.logger.info("Discord notifier address: %s", discord_address)
 
 
 @agent.on_event("shutdown")
@@ -163,19 +167,20 @@ async def handle_rug_check(ctx: Context, sender: str, msg: RugCheckResult) -> No
         intelligence_id=intelligence_id,
     )
 
-    # --- Broadcast to all registered notifier agents -------------------------
-    # NOTIFIER_PROTOCOL_DIGEST is stable from module import (digest = hash of name+version).
-    # Each notifier agent creates its own Protocol(name="NotifierProtocol", version="1.0")
-    # instance so their handlers don't overwrite each other on a shared object.
-    try:
-        await ctx.broadcast(NOTIFIER_PROTOCOL_DIGEST, report)
-        ctx.logger.info(
-            "Broadcast IntelligenceReport for %s (score=%.1f) via NotifierProtocol.",
-            msg.mint_address, degen_score,
-        )
-    except Exception:
-        ctx.logger.exception("Broadcast failed for %s.", msg.mint_address)
-        return
+    # --- Send directly to notifier agents (no Almanac registration needed) ---
+    discord_address: str | None = ctx.storage.get("discord_address")
+    if discord_address:
+        try:
+            await ctx.send(discord_address, report)
+            ctx.logger.info(
+                "Sent IntelligenceReport for %s (score=%.1f) to Discord.",
+                msg.mint_address, degen_score,
+            )
+        except Exception:
+            ctx.logger.exception("Failed to send to Discord for %s.", msg.mint_address)
+            return
+    else:
+        ctx.logger.error("discord_address not set — startup incomplete.")
 
     # Targeted $set — only updates broadcast_sent, leaves scored_at intact
     try:

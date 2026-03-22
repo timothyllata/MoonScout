@@ -1,5 +1,5 @@
 """
-database.py — MongoDB Atlas async utility for NeuroScout.
+database.py — MongoDB Atlas async utility for MoonScout.
 
 Provides five public coroutines that cover all MongoDB Atlas Prize Track
 compliance requirements:
@@ -23,7 +23,7 @@ import motor.motor_asyncio
 from pymongo import DESCENDING, IndexModel, ASCENDING
 from pymongo.errors import ConnectionFailure, DuplicateKeyError, NetworkTimeout
 
-from neurosciout.config import settings
+from moonscout.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ _init_lock: asyncio.Lock | None = None
 # and visible to prize-track judges.
 COLLECTION_CACHE = "atlas_cache"
 COLLECTION_INTELLIGENCE = "token_intelligence"
-DB_NAME = "neurosciout"
+DB_NAME = "moonscout"
 
 
 # ---------------------------------------------------------------------------
