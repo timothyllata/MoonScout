@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NEXCHAIN — Coin Feed</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">NEX<span>CHAIN</span></div>
+  <div class="nav-tag">// LIVE COIN SCANNER <em>█</em></div>
+  <div class="nav-tag">COINS SCANNED: <span class="accent" id="total-count">0</span></div>
+</nav>
+
+<div class="layout">
+
+  <!-- MAIN STAGE -->
+  <div class="stage">
+    <div class="coin-card" id="coin-card">
+
+      <!-- HEADER -->
+      <div class="card-header">
+        <div class="coin-avatar" id="coin-avatar">
+          <div class="avatar-ring" id="avatar-ring"></div>
+          <span id="coin-emoji">🪙</span>
+        </div>
+        <div class="coin-meta">
+          <div class="coin-name-row">
+            <span class="coin-name" id="coin-name">—</span>
+            <span class="coin-sym" id="coin-sym">—</span>
+            <span class="verdict-badge" id="verdict-badge">—</span>
+          </div>
+          <div class="coin-address" id="coin-address">—</div>
+          <div class="coin-created" id="coin-created">—</div>
+        </div>
+      </div>
+
+      <!-- BODY -->
+      <div class="card-body">
+
+        <!-- SCORES -->
+        <div class="card-label">// RISK SCORES</div>
+        <div class="scores-grid">
+          <div class="score-block">
+            <div class="score-header">
+              <span class="score-name">DEGEN SCORE</span>
+              <span class="score-val" id="degen-score-val">—</span>
+            </div>
+            <div class="score-track">
+              <div class="score-bar degen-bar" id="degen-bar"></div>
+            </div>
+          </div>
+          <div class="score-block">
+            <div class="score-header">
+              <span class="score-name">RUG SCORE</span>
+              <span class="score-val" id="rug-score-val">—</span>
+            </div>
+            <div class="score-track">
+              <div class="score-bar rug-bar" id="rug-bar"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- FLAGS -->
+        <div class="card-label" style="margin-top:1rem">// TOKEN FLAGS</div>
+        <div class="flags-row">
+          <div class="flag-pill" id="flag-rug">IS RUG</div>
+          <div class="flag-pill" id="flag-lp">LP LOCKED</div>
+          <div class="flag-pill" id="flag-freeze">FREEZE AUTH</div>
+          <div class="flag-pill" id="flag-mint">MINT AUTH</div>
+        </div>
+
+        <!-- STATS -->
+        <div class="coin-stats">
+          <div class="coin-stat">
+            <div class="coin-stat-label">TOP HOLDER</div>
+            <div class="coin-stat-value" id="stat-top-holder">—</div>
+          </div>
+          <div class="coin-stat">
+            <div class="coin-stat-label">DECIMALS</div>
+            <div class="coin-stat-value" id="stat-decimals">—</div>
+          </div>
+          <div class="coin-stat">
+            <div class="coin-stat-label">CREATOR</div>
+            <div class="coin-stat-value" id="stat-creator">—</div>
+          </div>
+        </div>
+
+        <!-- VERDICT -->
+        <div class="verdict-section" id="verdict-section">
+          <div class="verdict-title" id="verdict-title">VERDICT</div>
+          <div class="verdict-text" id="verdict-text">—</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- PROGRESS -->
+    <div class="progress-wrap">
+      <div class="progress-label">
+        <span>// NEXT COIN</span>
+        <span id="countdown-label">5s</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-bar" id="progress-bar"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <span>// RECENT SCANS</span>
+      <span id="feed-count">0 COINS</span>
+    </div>
+    <div class="feed-list" id="feed-list"></div>
+    <div class="stats-footer">
+      <div class="stats-item">
+        <div class="stats-val meme-color" id="meme-count">0</div>
+        <div class="stats-lbl">MEMECOINS</div>
+      </div>
+      <div class="stats-item">
+        <div class="stats-val legit-color" id="legit-count">0</div>
+        <div class="stats-lbl">LEGIT COINS</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
