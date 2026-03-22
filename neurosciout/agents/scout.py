@@ -273,9 +273,8 @@ async def on_startup(ctx: Context) -> None:
     ctx.storage.set("historian_address", historian_address)
     ctx.logger.info("Historian target address: %s", historian_address)
 
-    # Initialise cursor — None on first run (fetch most recent batch)
-    if not ctx.storage.get("last_signature"):
-        ctx.storage.set("last_signature", None)
+    # cursor starts as None on first run — no explicit initialisation needed
+    # (ctx.storage.get returns None for unknown keys already)
 
 
 @agent.on_event("shutdown")
@@ -291,11 +290,16 @@ async def on_shutdown(ctx: Context) -> None:
 
 @agent.on_interval(period=settings.scout_poll_interval)
 async def poll_new_tokens(ctx: Context) -> None:
-    # FIX CRITICAL-2: Guard storage reads — storage returns None on cache miss
+    # Prefer the address cached by on_startup; derive it from the seed as a
+    # fallback so a Bureau startup race condition never skips the first poll.
     historian_address: str | None = ctx.storage.get("historian_address")
     if historian_address is None:
-        ctx.logger.error("historian_address not set — startup may not have completed. Skipping poll.")
-        return
+        ctx.logger.warning(
+            "historian_address not in storage (startup race?); "
+            "deriving from seed and caching now."
+        )
+        historian_address = _peer_address(settings.historian_seed)
+        ctx.storage.set("historian_address", historian_address)
 
     before_sig: str | None = ctx.storage.get("last_signature")
     ctx.logger.debug("Polling Helius (before_sig=%s)...", before_sig)

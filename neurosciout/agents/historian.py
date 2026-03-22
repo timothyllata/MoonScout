@@ -180,14 +180,16 @@ async def on_shutdown(ctx: Context) -> None:
 
 @historian_protocol.on_message(model=TokenDiscovery)
 async def handle_discovery(ctx: Context, sender: str, msg: TokenDiscovery) -> None:
-    # FIX CRITICAL-2: guard storage read — returns None on cold-start miss
+    # Prefer the address cached by on_startup; derive from seed as a fallback
+    # so a Bureau startup race condition never silently drops a TokenDiscovery.
     analyst_address: str | None = ctx.storage.get("analyst_address")
     if analyst_address is None:
-        ctx.logger.error(
-            "analyst_address not set (startup incomplete?) — dropping TokenDiscovery for %s",
-            msg.mint_address,
+        ctx.logger.warning(
+            "analyst_address not in storage (startup race?); "
+            "deriving from seed and caching now."
         )
-        return
+        analyst_address = _peer_address(settings.analyst_seed)
+        ctx.storage.set("analyst_address", analyst_address)
 
     ctx.logger.info(
         "Received TokenDiscovery: mint=%s symbol=%s from %s",
