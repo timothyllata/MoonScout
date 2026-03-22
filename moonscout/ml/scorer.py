@@ -162,7 +162,7 @@ class DegenScorer:
             # Omit feature_names from DMatrix in xgboost 3.x — pass it at
             # training time instead.  Setting it here can cause a hard error if
             # the booster was trained without feature names.
-            dmatrix = xgb.DMatrix(features)
+            dmatrix = xgb.DMatrix(features, feature_names=FEATURE_NAMES)
             raw = float(self._model.predict(dmatrix)[0])
             # Model outputs probability [0, 1] — map to [0, 100]
             return min(100.0, max(0.0, raw * 100.0))
